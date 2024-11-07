@@ -1,5 +1,6 @@
 # 🧪 Spring Boot Practice
 
+Goorm 풀스택 13회차 백엔드 Exp Mission      
 Spring Boot 학습을 위한 실습 프로젝트입니다.  
 간단한 REST API부터 MVC 구조, DI, JPA, 트랜잭션, AOP 등 핵심 개념을 단계별로 익힙니다.
 
