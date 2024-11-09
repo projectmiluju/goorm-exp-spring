@@ -10,6 +10,7 @@ public class HelloService {
 
     public HelloService(HelloRepository helloRepository) {
         this.helloRepository = helloRepository;
+        System.out.println(">>> HelloService 생성됨");
     }
 
     public String getHelloMessage() {
