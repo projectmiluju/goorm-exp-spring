@@ -9,9 +9,9 @@ public class HelloController {
 
     private final HelloService helloService;
 
-    // 생성자 주입
     public HelloController(HelloService helloService) {
         this.helloService = helloService;
+        System.out.println(">>> HelloController 생성됨");
     }
 
     @GetMapping("/hello")
