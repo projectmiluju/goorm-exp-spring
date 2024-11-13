@@ -2,6 +2,7 @@ package com.example.practice.controller;
 
 import com.example.practice.domain.Post;
 import com.example.practice.repository.PostRepository;
+import com.example.practice.service.PostService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -11,14 +12,17 @@ import java.util.List;
 public class PostController {
 
     private final PostRepository postRepository;
+    private final PostService postService;
 
-    public PostController(PostRepository postRepository) {
+
+    public PostController(PostRepository postRepository, PostService postService) {
         this.postRepository = postRepository;
+        this.postService = postService;
     }
 
     @PostMapping
     public Post create(@RequestBody Post post) {
-        return postRepository.save(post);
+        return postService.createPost(post);
     }
 
     @GetMapping
