@@ -17,59 +17,57 @@ Spring Boot 학습을 위한 실습 프로젝트입니다.
 
 ---
 
-## 트랜잭션 관리 및 롤백 실습
+##  AOP + 로깅 기능 적용
 
-Spring의 `@Transactional`을 사용하여 트랜잭션을 관리하고, 예외 발생 시 자동으로 롤백되는 동작을 실습합니다.
+Spring AOP를 이용해 서비스 메서드의 실행 전후에 자동으로 로그를 출력하는 기능을 구현합니다.        
+중복되는 로깅 코드를 제거하고, 핵심 로직과 공통 기능을 분리합니다.
+
+### 목적
+
+- 메서드 실행 전/후 시간을 로그로 기록
+- Service 계층의 핵심 로직과 로그를 분리
+- Cross-Cutting Concern(횡단 관심사)을 AOP로 처리
+
+---
 
 ### 1. 프로젝트 구조
 
 ```markdown
 com.example.practice
-├── controller
-│   └── PostController.java
+├── aop
+│   └── LoggingAspect.java ← AOP 로깅 기능 추가
 ├── service
-│   └── PostService.java ← 트랜잭션 관리 위치
-├── repository
-│   └── PostRepository.java
-└── domain
-    └── Post.java
+    └── PostService.java
 ```
 
 ---
 
 ### 2. 사용 기술 및 어노테이션
 
-| 구성 요소       | 주요 어노테이션                                             |
-|-------------|------------------------------------------------------|
-| Entity      | @Entity, @Id, @GeneratedValue                        |
-| Repository	 | JpaRepository, @Repository                           |
-| Controller  | @RestController, @RequestMapping, @PostMapping, etc. |
-| Service     | @Service, @Transactional                                   |
-| DB 설정       | H2 Database, application.properties                  |
+| 구성 요소         | 주요 어노테이션                                            |
+|---------------|-----------------------------------------------------|
+| LoggingAspect | @Aspect, @Component|
 
 ---
 
-### 3. 트랜잭션 적용: PostService
+### 3. LoggingAspect 구현
 
 ```java
-@Service
-public class PostService {
+@Aspect
+@Component
+public class LoggingAspect {
 
-    private final PostRepository postRepository;
+    @Around("execution(* com.example.practice.service.*.*(..))")
+    public Object logExecutionTime(ProceedingJoinPoint joinPoint) throws Throwable {
+        String methodName = joinPoint.getSignature().toShortString();
+        System.out.println("▶️ [START] " + methodName);
 
-    public PostService(PostRepository postRepository) {
-        this.postRepository = postRepository;
-    }
+        long start = System.currentTimeMillis();
+        Object result = joinPoint.proceed();  // 원래 메서드 실행
+        long end = System.currentTimeMillis();
 
-    @Transactional
-    public Post createPost(Post post) {
-        postRepository.save(post);
-
-        if (post.getTitle().contains("fail")) {
-            throw new RuntimeException("강제 예외 발생: 트랜잭션 롤백 테스트");
-        }
-
-        return post;
+        System.out.println("✅ [END] " + methodName + " (" + (end - start) + " ms)");
+        return result;
     }
 }
 ```
@@ -79,23 +77,26 @@ public class PostService {
 ```http request
 POST /posts
 {
-  "title": "정상 게시글",
-  "content": "트랜잭션 테스트"
+  "title": "aop test",
+  "content": "로깅 테스트"
 }
 ```
 
-- 저장됨
-- DB 반영 확인 가능
+```scss
+▶️ [START] PostService.createPost(..)
+✅ [END] PostService.createPost(..) (12 ms)
+```
 
 ---
 
 ### 5. 학습 포인트 요약
 
-| 개념               | 설명                                        |
-| ---------------- | ----------------------------------------- |
-| `@Transactional` | 메서드 내 DB 작업을 하나의 트랜잭션으로 처리, 예외 발생 시 전체 롤백 |
-| 롤백 조건            | 기본 설정은 `RuntimeException` 발생 시 롤백         |
-| 트랜잭션 위치          | **서비스 계층**에 선언하는 것이 일반적인 실무 구조            |
+| 개념                    | 설명                       |
+| --------------------- | ------------------------ |
+| `@Aspect`             | AOP 클래스를 정의할 때 사용        |
+| `@Around`             | 메서드 실행 전후에 로직 삽입         |
+| `ProceedingJoinPoint` | 실제 실행 대상 메서드 정보와 제어를 제공  |
+| `execution(..)`       | AOP 적용 범위를 지정하는 포인트컷 표현식 |
 
 
 ---
