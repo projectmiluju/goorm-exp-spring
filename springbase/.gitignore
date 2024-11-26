@@ -1,0 +1,61 @@
+# Java
+*.class
+*.jar
+*.war
+*.ear
+*.log
+
+# Build directories
+/build/
+/target/
+
+# Gradle
+.gradle/
+/out/
+!gradle/wrapper/gradle-wrapper.jar
+.gradle-cache/
+build/
+
+# IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Eclipse
+.project
+.classpath
+.c9/
+.settings/
+*.launch
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.pid
+
+# Spring Boot devtools
+.spring-boot-devtools.properties
+
+# Test Reports
+/test-output/
+/test-results/
+/surefire-reports/
+/jacoco.exec
+
+# H2 DB
+*.h2.db
+*.mv.db
+
+# 환경 변수 파일
+.env
+
+# Lombok
+lombok.config
+
+# VSCode
+.vscode/
