@@ -113,9 +113,7 @@ public class SpringBaseApplication {
 
 🧨 실행 결과 (의도된 에러 발생)
 
-![1.png](attachment:bd28413a-2b12-4129-9c8e-8ae972a8952a:스크린샷_2025-05-29_오전_11.29.58.png)
-
----
+<img src="https://github.com/projectmiluju/goorm-exp-spring/blob/feature/circulardependency/springbase/src/main/asset/1.png" width="50%" height="50%" alt="순환 의존성 에러">
 
 ## 2단계: 순환 의존성 해결 (`@Lazy` 사용)
 
