@@ -1,4 +1,6 @@
-## **의존관계 자동 주입: `@Autowired`, `@Qualifier`, `@Primary`**
+## **순환 의존성 문제 해결 예제**
+
+## 1단계: 순환 의존성 발생 구조 만들기
 
 ### 📁 프로젝트 구조
 
@@ -6,6 +8,8 @@
 src/
  └── main/
      └── java/com/example/springBase/
+		     ├── A.java
+		     ├── B.java
          ├── controller/GreetingCotroller.java
          ├── service/
 			   │   ├── EnglishGreetingService.java
@@ -15,67 +19,61 @@ src/
          └── SpringBaseApplication.java
 ```
 
----
-
-### 📄 GreetingService.java (인터페이스)
-
-```java
-package com.example.springBase.service;
-
-public interface GreetingService {
-    String greet();
-}
-```
-
----
-
-### 📄 EnglishGreetingService.java (구현 클래스, 빈 등록)
-
-```java
-package com.example.springBase.service;
-
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.stereotype.Component;
-
-@Component
-@Qualifier("englishGreetingService") // 이름 지정
-public class EnglishGreetingService implements GreetingService {
-    @Override
-    public String greet() {
-        return "Hello! (English)";
-    }
-}
-```
-
----
-
-### 📄 KoreanGreetingService.java (구현 클래스, 빈 등록)
-
-```java
-package com.example.springBase.service;
-
-import org.springframework.context.annotation.Primary;
-import org.springframework.stereotype.Component;
-
-@Component
-@Primary // 기본 주입 대상
-public class KoreanGreetingService implements GreetingService {
-    @Override
-    public String greet() {
-        return "안녕하세요! (Korean)";
-    }
-}
-
-```
-
----
-
-### 📄 AppRunner.java (빈 주입 및 실행)
+### 📄 `A.java`
 
 ```java
 package com.example.springBase;
 
-import com.example.springBase.controller.GreetingController;
+import org.springframework.stereotype.Component;
+
+@Component
+public class A {
+
+    private final B b;
+
+    public A(B b) {
+        this.b = b;
+    }
+
+    public void hello() {
+        System.out.println("A가 호출됨");
+    }
+}
+
+```
+
+---
+
+### 📄 `B.java`
+
+```java
+package com.example.circulardemo;
+
+import org.springframework.stereotype.Component;
+
+@Component
+public class B {
+
+    private final A a;
+
+    public B(A a) {
+        this.a = a;
+    }
+
+    public void hello() {
+        System.out.println("B가 호출됨");
+    }
+}
+
+```
+
+---
+
+### 📄 `AppRunner.java`
+
+```java
+package com.example.springBase;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
@@ -84,19 +82,18 @@ import org.springframework.stereotype.Component;
 public class AppRunner implements CommandLineRunner {
 
     @Autowired
-    private GreetingController controller;
+    private A a;
 
     @Override
     public void run(String... args) throws Exception {
-        controller.printGreetings();
+        a.hello();
     }
 }
-
 ```
 
 ---
 
-### 📄 SpringBaseApplication.java
+### 📄 `SpringBaseApplication.java`
 
 ```java
 package com.example.springBase;
@@ -106,21 +103,54 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 public class SpringBaseApplication {
-
     public static void main(String[] args) {
         SpringApplication.run(SpringBaseApplication.class, args);
     }
+}
+```
 
+---
+
+🧨 실행 결과 (의도된 에러 발생)
+
+![1.png](attachment:bd28413a-2b12-4129-9c8e-8ae972a8952a:스크린샷_2025-05-29_오전_11.29.58.png)
+
+---
+
+## 2단계: 순환 의존성 해결 (`@Lazy` 사용)
+
+### 📄 `A.java` 수정
+
+```java
+@Component
+public class A {
+
+    private final B b;
+
+    public A(@Lazy B b) {
+        this.b = b;
+    }
+
+    public void hello() {
+        System.out.println("A가 호출됨");
+        b.hello(); // b도 호출 확인
+    }
 }
 
 ```
 
 ---
 
-### 주입 방식 비교표
+### 📄 `B.java` 그대로 사용
 
-| 구분 | 설명 | 사용 상황 |
-| --- | --- | --- |
-| `@Autowired` | 타입 기준 자동 주입 | 기본적인 자동 주입 |
-| `@Qualifier` | 동일 타입의 여러 빈 중 이름 기준으로 지정 | 특정 구현체 명시 주입 필요할 때 사용 |
-| `@Primary` | 기본으로 주입될 우선순위 빈 지정 | 여러 구현체 중 기본으로 사용할 구현체 설정 시 |
+---
+
+### ✅ 실행 결과
+
+```
+A가 호출됨
+B가 호출됨
+```
+
+> 💡 순환 의존이 생성자 주입으로 발생할 경우, @Lazy를 사용하여 지연 주입하면 해결할 수 있습니다.
+>
