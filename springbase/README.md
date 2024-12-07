@@ -1,42 +1,37 @@
-## **순환 의존성 문제 해결 예제**
+## **빈 스코프: Singleton vs Prototype**
 
-## 1단계: 순환 의존성 발생 구조 만들기
-
-### 📁 프로젝트 구조
+### 📁 패키지 구조
 
 ```
-src/
- └── main/
-     └── java/com/example/springBase/
-		     ├── A.java
-		     ├── B.java
-         ├── controller/GreetingCotroller.java
-         ├── service/
-			   │   ├── EnglishGreetingService.java
-			   │   ├── KoreanGreetingService.java
-         │   └── GreetingService.java
-         ├── AppRunner.java
-         └── SpringBaseApplication.java
+src/main/java/com/example/springBase/
+├── SpringBaseApplication.java
+├── SingletonBean.java
+├── PrototypeBean.java
+└── AppRunner.java
 ```
 
-### 📄 `A.java`
+## ✅ 코드 작성
+
+### 📄 `SingletonBean.java`
 
 ```java
 package com.example.springBase;
 
+import jakarta.annotation.PostConstruct;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 @Component
-public class A {
+@Scope("singleton") // 생략해도 기본은 singleton
+public class SingletonBean {
 
-    private final B b;
-
-    public A(B b) {
-        this.b = b;
+    public SingletonBean() {
+        System.out.println("SingletonBean 생성됨: " + this);
     }
 
-    public void hello() {
-        System.out.println("A가 호출됨");
+    @PostConstruct
+    public void init() {
+        System.out.println("SingletonBean 초기화 메서드 호출됨");
     }
 }
 
@@ -44,24 +39,26 @@ public class A {
 
 ---
 
-### 📄 `B.java`
+### 📄 `PrototypeBean.java`
 
 ```java
-package com.example.circulardemo;
+package com.example.springBase;
 
+import jakarta.annotation.PostConstruct;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 @Component
-public class B {
+@Scope("prototype")
+public class PrototypeBean {
 
-    private final A a;
-
-    public B(A a) {
-        this.a = a;
+    public PrototypeBean() {
+        System.out.println("PrototypeBean 생성됨: " + this);
     }
 
-    public void hello() {
-        System.out.println("B가 호출됨");
+    @PostConstruct
+    public void init() {
+        System.out.println("PrototypeBean 초기화 메서드 호출됨");
     }
 }
 
@@ -74,26 +71,38 @@ public class B {
 ```java
 package com.example.springBase;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
 @Component
 public class AppRunner implements CommandLineRunner {
 
-    @Autowired
-    private A a;
+    private final ApplicationContext context;
+
+    public AppRunner(ApplicationContext context) {
+        this.context = context;
+    }
 
     @Override
-    public void run(String... args) throws Exception {
-        a.hello();
+    public void run(String... args) {
+        System.out.println("==== SingletonBean 테스트 ====");
+        SingletonBean singleton1 = context.getBean(SingletonBean.class);
+        SingletonBean singleton2 = context.getBean(SingletonBean.class);
+        System.out.println("singleton1 == singleton2: " + (singleton1 == singleton2));
+
+        System.out.println("==== PrototypeBean 테스트 ====");
+        PrototypeBean proto1 = context.getBean(PrototypeBean.class);
+        PrototypeBean proto2 = context.getBean(PrototypeBean.class);
+        System.out.println("proto1 == proto2: " + (proto1 == proto2));
     }
 }
+
 ```
 
 ---
 
-### 📄 `SpringBaseApplication.java`
+### 📄 `ScopeDemoApplication.java`
 
 ```java
 package com.example.springBase;
@@ -102,36 +111,9 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class SpringBaseApplication {
+public class ScopeDemoApplication {
     public static void main(String[] args) {
-        SpringApplication.run(SpringBaseApplication.class, args);
-    }
-}
-```
-
----
-
-🧨 실행 결과 (의도된 에러 발생)
-
-<img src="https://github.com/projectmiluju/goorm-exp-spring/blob/feature/circulardependency/springbase/src/main/asset/1.png" width="50%" height="50%" alt="순환 의존성 에러">
-
-## 2단계: 순환 의존성 해결 (`@Lazy` 사용)
-
-### 📄 `A.java` 수정
-
-```java
-@Component
-public class A {
-
-    private final B b;
-
-    public A(@Lazy B b) {
-        this.b = b;
-    }
-
-    public void hello() {
-        System.out.println("A가 호출됨");
-        b.hello(); // b도 호출 확인
+        SpringApplication.run(ScopeDemoApplication.class, args);
     }
 }
 
@@ -139,16 +121,34 @@ public class A {
 
 ---
 
-### 📄 `B.java` 그대로 사용
+## ✅ 실행 결과 예시 (콘솔)
+
+```
+SingletonBean 생성됨: com.example.springBase.SingletonBean@33532d
+SingletonBean 초기화 메서드 호출됨
+==== SingletonBean 테스트 ====
+singleton1 == singleton2: true
+
+==== PrototypeBean 테스트 ====
+PrototypeBean 생성됨: com.example.springBase.PrototypeBean@36f3a8c3
+PrototypeBean 초기화 메서드 호출됨
+PrototypeBean 생성됨: com.example.springBase.PrototypeBean@88a9c4f
+PrototypeBean 초기화 메서드 호출됨
+proto1 == proto2: false
+
+```
 
 ---
 
-### ✅ 실행 결과
+## ✅ 정리
 
-```
-A가 호출됨
-B가 호출됨
-```
+| 구분 | singleton | prototype |
+| --- | --- | --- |
+| 정의 | Spring 컨테이너에서 1개의 인스턴스 유지 | 요청할 때마다 새로운 인스턴스 생성 |
+| 특징 | 공유 인스턴스 | 매번 다른 객체 |
+| 사용 예시 | 대부분의 서비스 클래스 | 상태를 가지는 객체, 사용자 입력 기반 객체 |
+| 테스트 결과 | 동일 객체 주소 반환 | 서로 다른 주소 반환 |
 
-> 💡 순환 의존이 생성자 주입으로 발생할 경우, @Lazy를 사용하여 지연 주입하면 해결할 수 있습니다.
->
+---
+
+##
