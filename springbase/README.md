@@ -1,37 +1,28 @@
-## **빈 스코프: Singleton vs Prototype**
+## **AOP 적용 예제**
 
-### 📁 패키지 구조
+## ✅ 프로젝트 구조
 
 ```
 src/main/java/com/example/springBase/
 ├── SpringBaseApplication.java
-├── SingletonBean.java
-├── PrototypeBean.java
+├── service/UserService.java
+├── aspect/LoggingAspect.java
 └── AppRunner.java
 ```
 
 ## ✅ 코드 작성
 
-### 📄 `SingletonBean.java`
+### 📄 `UserService.java` (타깃 클래스)
 
 ```java
-package com.example.springBase;
+package com.example.springBase.service;
 
-import jakarta.annotation.PostConstruct;
-import org.springframework.context.annotation.Scope;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
-@Component
-@Scope("singleton") // 생략해도 기본은 singleton
-public class SingletonBean {
-
-    public SingletonBean() {
-        System.out.println("SingletonBean 생성됨: " + this);
-    }
-
-    @PostConstruct
-    public void init() {
-        System.out.println("SingletonBean 초기화 메서드 호출됨");
+@Service
+public class UserService {
+    public void joinUser(String name) {
+        System.out.println("회원 가입 처리 중: " + name);
     }
 }
 
@@ -39,29 +30,40 @@ public class SingletonBean {
 
 ---
 
-### 📄 `PrototypeBean.java`
+### 📄 `LoggingAspect.java` (애스펙트)
 
 ```java
-package com.example.springBase;
+package com.example.springBase.aspect;
 
-import jakarta.annotation.PostConstruct;
-import org.springframework.context.annotation.Scope;
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.annotation.After;
+import org.aspectj.lang.annotation.AfterReturning;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
 import org.springframework.stereotype.Component;
 
+@Aspect
 @Component
-@Scope("prototype")
-public class PrototypeBean {
+public class LoggingAspect {
 
-    public PrototypeBean() {
-        System.out.println("PrototypeBean 생성됨: " + this);
+    // 메서드 실행 전
+    @Before("execution(* com.example.aopdemo.service.*.*(..))")
+    public void logBefore(JoinPoint joinPoint) {
+        System.out.println("[Before] 메서드 실행 전: " + joinPoint.getSignature().getName());
     }
 
-    @PostConstruct
-    public void init() {
-        System.out.println("PrototypeBean 초기화 메서드 호출됨");
+    // 메서드 실행 후
+    @After("execution(* com.example.aopdemo.service.*.*(..))")
+    public void logAfter(JoinPoint joinPoint) {
+        System.out.println("[After] 메서드 실행 후: " + joinPoint.getSignature().getName());
+    }
+
+    // 반환값 확인
+    @AfterReturning(pointcut = "execution(* com.example.aopdemo.service.*.*(..))", returning = "result")
+    public void logAfterReturning(JoinPoint joinPoint, Object result) {
+        System.out.println("[AfterReturning] 반환값: " + result);
     }
 }
-
 ```
 
 ---
@@ -71,38 +73,29 @@ public class PrototypeBean {
 ```java
 package com.example.springBase;
 
+import com.example.springBase.service.UserService;
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
 @Component
 public class AppRunner implements CommandLineRunner {
 
-    private final ApplicationContext context;
+    private final UserService userService;
 
-    public AppRunner(ApplicationContext context) {
-        this.context = context;
+    public AppRunner(UserService userService) {
+        this.userService = userService;
     }
 
     @Override
-    public void run(String... args) {
-        System.out.println("==== SingletonBean 테스트 ====");
-        SingletonBean singleton1 = context.getBean(SingletonBean.class);
-        SingletonBean singleton2 = context.getBean(SingletonBean.class);
-        System.out.println("singleton1 == singleton2: " + (singleton1 == singleton2));
-
-        System.out.println("==== PrototypeBean 테스트 ====");
-        PrototypeBean proto1 = context.getBean(PrototypeBean.class);
-        PrototypeBean proto2 = context.getBean(PrototypeBean.class);
-        System.out.println("proto1 == proto2: " + (proto1 == proto2));
+    public void run(String... args) throws Exception {
+        userService.joinUser("홍길동");
     }
 }
-
 ```
 
 ---
 
-### 📄 `ScopeDemoApplication.java`
+### 📄 `AopDemoApplication.java`
 
 ```java
 package com.example.springBase;
@@ -111,9 +104,9 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class ScopeDemoApplication {
+public class SpringBaseApplication {
     public static void main(String[] args) {
-        SpringApplication.run(ScopeDemoApplication.class, args);
+        SpringApplication.run(SpringBaseApplication.class, args);
     }
 }
 
@@ -124,31 +117,22 @@ public class ScopeDemoApplication {
 ## ✅ 실행 결과 예시 (콘솔)
 
 ```
-SingletonBean 생성됨: com.example.springBase.SingletonBean@33532d
-SingletonBean 초기화 메서드 호출됨
-==== SingletonBean 테스트 ====
-singleton1 == singleton2: true
-
-==== PrototypeBean 테스트 ====
-PrototypeBean 생성됨: com.example.springBase.PrototypeBean@36f3a8c3
-PrototypeBean 초기화 메서드 호출됨
-PrototypeBean 생성됨: com.example.springBase.PrototypeBean@88a9c4f
-PrototypeBean 초기화 메서드 호출됨
-proto1 == proto2: false
-
+[Before] 메서드 실행 전: joinUser
+회원 가입 처리 중: 홍길동
+[AfterReturning] 반환값: null
+[After] 메서드 실행 후: joinUser
 ```
 
 ---
 
-## ✅ 정리
+## ✅ 핵심 요약
 
-| 구분 | singleton | prototype |
-| --- | --- | --- |
-| 정의 | Spring 컨테이너에서 1개의 인스턴스 유지 | 요청할 때마다 새로운 인스턴스 생성 |
-| 특징 | 공유 인스턴스 | 매번 다른 객체 |
-| 사용 예시 | 대부분의 서비스 클래스 | 상태를 가지는 객체, 사용자 입력 기반 객체 |
-| 테스트 결과 | 동일 객체 주소 반환 | 서로 다른 주소 반환 |
+| 항목 | 설명 |
+| --- | --- |
+| `@Aspect` | 애스펙트 클래스 정의 |
+| `@Before` | 타깃 메서드 실행 전에 실행 |
+| `@After` | 타깃 메서드 실행 후에 실행 |
+| `@AfterReturning` | 정상 종료 후 반환값 로깅 가능 |
+| 포인트컷 | `execution(* 패키지.클래스.메서드(..))` 형식으로 지정 |
 
 ---
-
-##
