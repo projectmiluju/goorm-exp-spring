@@ -1,6 +1,6 @@
 package com.example.springBase;
 
-import com.example.springBase.service.UserService;
+import com.example.springBase.service.PaymentProcessor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
@@ -8,14 +8,14 @@ import org.springframework.stereotype.Component;
 @Component
 public class AppRunner implements CommandLineRunner {
 
-    private final UserService userService;
+    private final PaymentProcessor processor;
 
-    public AppRunner(UserService userService) {
-        this.userService = userService;
+    public AppRunner(PaymentProcessor processor) {
+        this.processor = processor;
     }
 
     @Override
     public void run(String... args) throws Exception {
-        userService.joinUser("홍길동");
+        processor.process(10000);
     }
 }

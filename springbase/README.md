@@ -1,67 +1,100 @@
-## **AOP 적용 예제**
+## 실습 목표
 
-## ✅ 프로젝트 구조
+- 인터페이스 정의
+- 인터페이스를 구현하는 클래스 2개 생성
+- 의존성 주입을 통해 구현체 사용
+- 실행 결과로 다형성 확인
+
+## 프로젝트 구조
 
 ```
 src/main/java/com/example/springBase/
 ├── SpringBaseApplication.java
-├── service/UserService.java
-├── aspect/LoggingAspect.java
+├── PaymentService.java      (인터페이스)
+├── CardPaymentService.java  (구현체1)
+├── KakaoPayService.java     (구현체2)
+├── PaymentProcessor.java    (사용자)
 └── AppRunner.java
 ```
 
-## ✅ 코드 작성
+## 코드 작성
 
-### 📄 `UserService.java` (타깃 클래스)
+### 📄 `PaymentService.java` (인터페이스)
 
 ```java
 package com.example.springBase.service;
 
-import org.springframework.stereotype.Service;
-
-@Service
-public class UserService {
-    public void joinUser(String name) {
-        System.out.println("회원 가입 처리 중: " + name);
-    }
+public interface PaymentService {
+    String pay(int amount);
 }
-
 ```
 
 ---
 
-### 📄 `LoggingAspect.java` (애스펙트)
+### 📄 `CardPaymentService.java` (구현 클래스 1)
 
 ```java
-package com.example.springBase.aspect;
+package com.example.springBase.service;
 
-import org.aspectj.lang.JoinPoint;
-import org.aspectj.lang.annotation.After;
-import org.aspectj.lang.annotation.AfterReturning;
-import org.aspectj.lang.annotation.Aspect;
-import org.aspectj.lang.annotation.Before;
+import org.springframework.context.annotation.Primary;
+import org.springframework.stereotype.Service;
+
+@Service
+@Primary // 기본 주입 대상
+public class CardPaymentService implements PaymentService {
+
+    @Override
+    public String pay(int amount) {
+        return "카드로 " + amount + "원 결제 완료";
+    }
+}
+```
+
+---
+
+### 📄 `KakaoPayService.java` (구현 클래스 2)
+
+```java
+package com.example.springBase.service;
+
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Service;
+
+@Service
+@Qualifier("kakaoPay")
+public class KakaoPayService implements PaymentService {
+
+    @Override
+    public String pay(int amount) {
+        return "카카오페이로 " + amount + "원 결제 완료";
+    }
+}
+```
+
+---
+
+### 📄 `PaymentProcessor.java` (사용 클래스)
+
+```java
+package com.example.springBase.service;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
-@Aspect
 @Component
-public class LoggingAspect {
+public class PaymentProcessor {
 
-    // 메서드 실행 전
-    @Before("execution(* com.example.aopdemo.service.*.*(..))")
-    public void logBefore(JoinPoint joinPoint) {
-        System.out.println("[Before] 메서드 실행 전: " + joinPoint.getSignature().getName());
+    private final PaymentService paymentService;
+
+    @Autowired
+    public PaymentProcessor(@Qualifier("kakaoPay") PaymentService paymentService) {
+        this.paymentService = paymentService;
     }
 
-    // 메서드 실행 후
-    @After("execution(* com.example.aopdemo.service.*.*(..))")
-    public void logAfter(JoinPoint joinPoint) {
-        System.out.println("[After] 메서드 실행 후: " + joinPoint.getSignature().getName());
-    }
-
-    // 반환값 확인
-    @AfterReturning(pointcut = "execution(* com.example.aopdemo.service.*.*(..))", returning = "result")
-    public void logAfterReturning(JoinPoint joinPoint, Object result) {
-        System.out.println("[AfterReturning] 반환값: " + result);
+    public void process(int amount) {
+        String result = paymentService.pay(amount);
+        System.out.println(result);
     }
 }
 ```
@@ -73,29 +106,29 @@ public class LoggingAspect {
 ```java
 package com.example.springBase;
 
-import com.example.springBase.service.UserService;
+import com.example.springBase.service.PaymentProcessor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 @Component
 public class AppRunner implements CommandLineRunner {
 
-    private final UserService userService;
+    private final PaymentProcessor processor;
 
-    public AppRunner(UserService userService) {
-        this.userService = userService;
+    public AppRunner(PaymentProcessor processor) {
+        this.processor = processor;
     }
 
     @Override
     public void run(String... args) throws Exception {
-        userService.joinUser("홍길동");
+        processor.process(10000);
     }
 }
 ```
 
 ---
 
-### 📄 `AopDemoApplication.java`
+### 📄 `InterfaceDemoApplication.java`
 
 ```java
 package com.example.springBase;
@@ -109,19 +142,18 @@ public class SpringBaseApplication {
         SpringApplication.run(SpringBaseApplication.class, args);
     }
 }
-
 ```
 
 ---
 
-## ✅ 실행 결과 예시 (콘솔)
+## 실행 결과 (콘솔)
 
 ```
-[Before] 메서드 실행 전: joinUser
-회원 가입 처리 중: 홍길동
-[AfterReturning] 반환값: null
-[After] 메서드 실행 후: joinUser
+카카오페이로 10000원 결제 완료
 ```
+
+> @Qualifier("kakaoPay")를 통해 인터페이스 기반으로 원하는 구현체를 선택해서 주입한 결과입니다.
+>
 
 ---
 
@@ -129,10 +161,11 @@ public class SpringBaseApplication {
 
 | 항목 | 설명 |
 | --- | --- |
-| `@Aspect` | 애스펙트 클래스 정의 |
-| `@Before` | 타깃 메서드 실행 전에 실행 |
-| `@After` | 타깃 메서드 실행 후에 실행 |
-| `@AfterReturning` | 정상 종료 후 반환값 로깅 가능 |
-| 포인트컷 | `execution(* 패키지.클래스.메서드(..))` 형식으로 지정 |
+| 인터페이스 사용 이유 | 구현체 교체를 유연하게 하고, 테스트 대역(Mock) 주입 가능 |
+| `@Primary` | 기본 구현체 지정 |
+| `@Qualifier` | 특정 구현체를 명시적으로 주입 |
+| 응집도/결합도 | 결합도 낮추고, 테스트 및 유지보수에 유리한 구조 제공 |
 
 ---
+
+##
