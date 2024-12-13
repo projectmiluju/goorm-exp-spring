@@ -1,17 +1,26 @@
 package com.example.springBase.controller;
 
 import com.example.springBase.model.User;
+import com.example.springBase.service.UserService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
+import java.util.List;
+
 @Controller
 public class UserController {
 
-    @GetMapping("/user")
-    public String userPage(Model model) {
-        User user = new User("홍길동", "hong@example.com");
-        model.addAttribute("user", user); // 모델에 데이터 등록
-        return "user"; // templates/user.html 렌더링
+    private final UserService userService;
+
+    public UserController(UserService userService) {
+        this.userService = userService;
+    }
+
+    @GetMapping("/users")
+    public String userList(Model model) {
+        List<User> users = userService.getAllUsers();
+        model.addAttribute("users", users);
+        return "user-list";
     }
 }
