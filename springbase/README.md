@@ -1,107 +1,78 @@
-## 실습 목표
+## ✅ 실습 목표
 
-- 계층 구조: `Controller → Service → Repository`
-- 간단한 사용자 목록 조회 기능 구현
-- 의존성 주입을 통해 계층 간 연결
-- 웹 페이지에서 사용자 리스트 출력
-
----
-
-## ✅ 1단계: 디렉터리 구조
-
-```
-src/main/java/com/example/springBase/
-├── controller/
-│   └── UserController.java
-├── service/
-│   └── UserService.java
-├── repository/
-│   └── UserRepository.java
-├── model/
-│   └── User.java
-└── SpringBaseApplication.java
-```
+- `@Scope` 애너테이션으로 웹 스코프 지정
+- `request`, `session`, `application` 스코프 빈 생성
+- 각각의 생명주기를 로그로 확인
+- 브라우저 요청을 반복하면서 동작 확인
 
 ---
 
-## ✅ 2단계: 도메인 클래스 (Model)
+## ✅ 사전 준비
 
-### 📄 `User.java`
+### 🔧 의존성 확인
 
-```java
-package com.example.springBase.model;
+`build.gradle`에 다음 의존성이 포함되어 있어야 합니다:
 
-public class User {
-    private Long id;
-    private String name;
-    private String email;
-
-    public User(Long id, String name, String email) {
-        this.id = id;
-        this.name = name;
-        this.email = email;
-    }
-
-    public Long getId() { return id; }
-    public String getName() { return name; }
-    public String getEmail() { return email; }
-}
-```
-
----
-
-## ✅ 3단계: Repository 계층
-
-### 📄 `UserRepository.java`
-
-```java
-package com.example.springBase.repository;
-
-import com.example.springBase.model.User;
-import org.springframework.stereotype.Repository;
-
-import java.util.Arrays;
-import java.util.List;
-
-@Repository
-public class UserRepository {
-
-    public List<User> findAll() {
-        return Arrays.asList(
-                new User(1L, "홍길동", "hong@example.com"),
-                new User(2L, "김영희", "kim@example.com")
-        );
-    }
+```groovy
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
 }
 
 ```
 
 ---
 
-## ✅ 4단계: Service 계층
+## ✅ 1단계: 스코프별 빈 생성
 
-### 📄 `UserService.java`
+### 📄 `RequestScopeBean.java`
 
 ```java
-package com.example.springBase.service;
+package com.example.springBase.scopebean;
 
-import com.example.springBase.model.User;
-import com.example.springBase.repository.UserRepository;
-import org.springframework.stereotype.Service;
+import jakarta.annotation.PostConstruct;
+import org.springframework.context.annotation.Scope;
+import org.springframework.context.annotation.ScopedProxyMode;
+import org.springframework.stereotype.Component;
+import org.springframework.web.context.WebApplicationContext;
 
-import java.util.List;
-
-@Service
-public class UserService {
-
-    private final UserRepository userRepository;
-
-    public UserService(UserRepository userRepository) {
-        this.userRepository = userRepository;
+@Component
+@Scope(value = WebApplicationContext.SCOPE_REQUEST, proxyMode = ScopedProxyMode.TARGET_CLASS)
+public class RequestScopeBean {
+    @PostConstruct
+    public void init() {
+        System.out.println("🟢 RequestScopeBean 생성됨: " + this);
     }
 
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    public String getScopeName() {
+        return "Request Scope";
+    }
+}
+```
+
+---
+
+### 📄 `SessionScopeBean.java`
+
+```java
+package com.example.springBase.scopebean;
+
+import jakarta.annotation.PostConstruct;
+import org.springframework.context.annotation.Scope;
+import org.springframework.context.annotation.ScopedProxyMode;
+import org.springframework.stereotype.Component;
+import org.springframework.web.context.WebApplicationContext;
+
+@Component
+@Scope(value = WebApplicationContext.SCOPE_SESSION, proxyMode = ScopedProxyMode.TARGET_CLASS)
+public class SessionScopeBean {
+    @PostConstruct
+    public void init() {
+        System.out.println("🟡 SessionScopeBean 생성됨: " + this);
+    }
+
+    public String getScopeName() {
+        return "Session Scope";
     }
 }
 
@@ -109,86 +80,116 @@ public class UserService {
 
 ---
 
-## ✅ 5단계: Controller 계층
+### 📄 `ApplicationScopeBean.java`
 
-### 📄 `UserController.java`
+```java
+package com.example.springBase.scopebean;
+
+import jakarta.annotation.PostConstruct;
+import org.springframework.context.annotation.Scope;
+import org.springframework.context.annotation.ScopedProxyMode;
+import org.springframework.stereotype.Component;
+import org.springframework.web.context.WebApplicationContext;
+
+@Component
+@Scope(value = WebApplicationContext.SCOPE_APPLICATION, proxyMode = ScopedProxyMode.TARGET_CLASS)
+public class ApplicationScopeBean {
+    @PostConstruct
+    public void init() {
+        System.out.println("🔵 ApplicationScopeBean 생성됨: " + this);
+    }
+
+    public String getScopeName() {
+        return "Application Scope";
+    }
+}
+
+```
+
+---
+
+## ✅ 2단계: 컨트롤러 생성
+
+### 📄 `ScopeController.java`
 
 ```java
 package com.example.springBase.controller;
 
-import com.example.springBase.model.User;
-import com.example.springBase.service.UserService;
+import com.example.springBase.scopebean.ApplicationScopeBean;
+import com.example.springBase.scopebean.RequestScopeBean;
+import com.example.springBase.scopebean.SessionScopeBean;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
-import java.util.List;
-
 @Controller
-public class UserController {
+public class ScopeController {
 
-    private final UserService userService;
+    private final RequestScopeBean requestBean;
+    private final SessionScopeBean sessionBean;
+    private final ApplicationScopeBean applicationBean;
 
-    public UserController(UserService userService) {
-        this.userService = userService;
+    public ScopeController(RequestScopeBean requestBean,
+                           SessionScopeBean sessionBean,
+                           ApplicationScopeBean applicationBean) {
+        this.requestBean = requestBean;
+        this.sessionBean = sessionBean;
+        this.applicationBean = applicationBean;
     }
 
-    @GetMapping("/users")
-    public String userList(Model model) {
-        List<User> users = userService.getAllUsers();
-        model.addAttribute("users", users);
-        return "user-list";
+    @GetMapping("/scope")
+    public String scopeInfo(Model model) {
+        model.addAttribute("request", requestBean.getScopeName() + " : " + requestBean);
+        model.addAttribute("session", sessionBean.getScopeName() + " : " + sessionBean);
+        model.addAttribute("application", applicationBean.getScopeName() + " : " + applicationBean);
+        return "scope-view";
     }
 }
-
 ```
 
 ---
 
-## ✅ 6단계: View 작성 (Thymeleaf)
+## ✅ 3단계: 뷰 작성
 
-### 📄 `src/main/resources/templates/user-list.html`
+### 📄 `src/main/resources/templates/scope-view.html`
 
 ```html
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head>
-  <title>사용자 목록</title>
-</head>
+<head><title>스코프 테스트</title></head>
 <body>
-<h1>사용자 목록</h1>
-<ul>
-  <li th:each="user : ${users}">
-    <span th:text="${user.name}">이름</span> -
-    <span th:text="${user.email}">이메일</span>
-  </li>
-</ul>
+<h1>빈 스코프 테스트</h1>
+<p th:text="${request}"></p>
+<p th:text="${session}"></p>
+<p th:text="${application}"></p>
 </body>
 </html>
-
 ```
 
 ---
 
-## ✅ 7단계: 실행 및 확인
+## ✅ 4단계: 실행 및 테스트
 
-1. 서버 실행 후
-2. 브라우저에서 `http://localhost:8080/users` 접속
+1. 서버 실행: `./gradlew bootRun`
+2. 브라우저에서 `http://localhost:8080/scope` 접속
+3. 새로고침하거나 새 창에서 접속하며 로그 확인
 
-### ✅ 결과 화면 예시 (스크린샷용):
+---
+
+## ✅ 로그 예시
 
 ```
-홍길동 - hong@example.com
-김영희 - kim@example.com
+🟢 RequestScopeBean 생성됨: com.example.springBase.scopebean.RequestScopeBean@3e275fd0
+🟡 SessionScopeBean 생성됨: com.example.springBase.scopebean.SessionScopeBean@136e64eb
+🔵 ApplicationScopeBean 생성됨: com.example.springBase.scopebean.ApplicationScopeBean@24c75faa
 ```
 
 ---
 
-## ✅ 계층 구조 요약
+## ✅ 동작 요약
 
-| 계층 | 클래스 | 역할 |
+| 스코프 종류 | 생성 시점 | 유지 범위 |
 | --- | --- | --- |
-| Controller | `UserController` | 요청 처리, 응답 전달 |
-| Service | `UserService` | 비즈니스 로직 |
-| Repository | `UserRepository` | 데이터 제공 (DB 대역) |
-| View | `user-list.html` | 사용자에게 HTML로 결과 출력 |
+| `request` | 매 요청마다 새로 생성 | 1 HTTP 요청 |
+| `session` | 최초 세션 요청 시 한 번 생성 | 브라우저 세션 |
+| `application` | 애플리케이션 시작 시 한 번 생성 | 전체 애플리케이션 공통 |
